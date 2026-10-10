@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>sign in</title>
+<link rel="stylesheet" href="/auth/style.css" />
+<main>
+  <h1>Sign in</h1>
+  <p class="sub">Use your passkey to continue.</p>
+  <button id="login" hidden>Sign in with a passkey</button>
+  <p id="out">Waiting for your passkey…</p>
+</main>
+<script type="module">
+  const loginButton = document.getElementById("login");
+  const status = document.getElementById("out");
+
+  const showError = (error) => {
+    status.textContent = error.message ?? error;
+    status.className = "error";
+  };
+
+  const fetchLoginOptions = async () => {
+    const response = await fetch("/auth/login/options", { method: "POST" });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    return PublicKeyCredential.parseRequestOptionsFromJSON(
+      await response.json(),
+    );
+  };
+
+  const signIn = async () => {
+    const credential = await navigator.credentials.get({
+      publicKey: await fetchLoginOptions(),
+    });
+
+    const response = await fetch("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(credential),
+    });
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    location.reload();
+  };
+
+  loginButton.onclick = async () => {
+    loginButton.disabled = true;
+    status.textContent = "Waiting for your passkey…";
+    status.className = "";
+
+    try {
+      await signIn();
+    } catch (error) {
+      showError(error);
+      loginButton.disabled = false;
+    }
+  };
+
+  // WebAuthn prompts require a focused document.
+  if (!document.hasFocus()) {
+    await new Promise((resolve) =>
+      addEventListener("focus", resolve, { once: true }),
+    );
+  }
+
+  // If the automatic prompt is blocked or dismissed, offer a retry button.
+  try {
+    await signIn();
+  } catch (error) {
+    showError(error);
+    loginButton.hidden = false;
+  }
+</script>

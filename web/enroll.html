@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>enroll a passkey</title>
+<link rel="stylesheet" href="/auth/style.css" />
+<main>
+  <h1>Enroll a passkey</h1>
+  <p class="sub">Create a passkey to protect this service.</p>
+  <input
+    id="token"
+    type="password"
+    placeholder="Enrollment token"
+    autocomplete="off"
+    required
+  />
+  <label class="option">
+    <input type="checkbox" id="replace" />
+    Remove this account's other passkeys
+  </label>
+  <button id="enroll">Create passkey</button>
+  <p id="out"></p>
+</main>
+
+<script type="module">
+  const enrollButton = document.getElementById("enroll");
+  const status = document.getElementById("out");
+  const replaceBox = document.getElementById("replace");
+  const tokenBox = document.getElementById("token");
+
+  addEventListener("unhandledrejection", (event) => {
+    // The authenticator already holds one of this account's passkeys.
+    status.textContent =
+      event.reason?.name === "InvalidStateError"
+        ? "This device or password manager already has a passkey for this account. Use another one, or tick the box to replace the existing passkeys."
+        : (event.reason?.message ?? event.reason);
+    status.className = "error";
+  });
+
+  enrollButton.onclick = async () => {
+    const query = replaceBox.checked ? "?replace=1" : "";
+    const optionsResponse = await fetch("/auth/enroll/options" + query, {
+      method: "POST",
+      headers: { "X-Enroll-Token": tokenBox.value },
+    });
+
+    if (!optionsResponse.ok) {
+      throw new Error(await optionsResponse.text());
+    }
+
+    const credential = await navigator.credentials.create({
+      publicKey: PublicKeyCredential.parseCreationOptionsFromJSON(
+        await optionsResponse.json(),
+      ),
+    });
+
+    const enrollmentResponse = await fetch("/auth/enroll" + query, {
+      method: "POST",
+      headers: { "X-Enroll-Token": tokenBox.value },
+      body: JSON.stringify(credential),
+    });
+    if (!enrollmentResponse.ok) {
+      throw new Error(await enrollmentResponse.text());
+    }
+
+    status.textContent =
+      "Passkey saved. Restart without PASSKEY_ENROLL to close enrollment.";
+    status.className = "ok";
+    enrollButton.disabled = true;
+    replaceBox.disabled = true;
+    tokenBox.disabled = true;
+  };
+</script>
