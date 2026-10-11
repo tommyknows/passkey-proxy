@@ -38,8 +38,9 @@ const (
 
 type server struct {
 	relyingParty *passkey.RelyingParty
-	proxy        *httputil.ReverseProxy
 	accounts     *store.Store
+	// proxy is optional - if unset requests are not forwarded.
+	proxy *httputil.ReverseProxy
 
 	origin string
 
@@ -78,8 +79,16 @@ func (s *server) handler() (http.Handler, error) {
 			return
 		}
 
-		r.Header.Set("X-Auth-User", name)
-		s.proxy.ServeHTTP(w, r)
+		if s.proxy != nil {
+			r.Header.Set("X-Auth-User", name)
+			s.proxy.ServeHTTP(w, r)
+			return
+		}
+
+		w.Header().Set("X-Auth-User", name)
+		w.WriteHeader(http.StatusNoContent)
+		return
+
 	}), nil
 }
 

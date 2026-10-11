@@ -38,10 +38,13 @@
       };
 
       forward = lib.mkOption {
-        type = lib.types.str;
-        default = "http://localhost:9091";
+        type = lib.types.nullOr lib.types.str;
+        default = null;
         example = "http://127.0.0.1:3000";
-        description = "URL of the app to proxy.";
+        description = ''
+          URL of the app to proxy. If null, requests are acked with a 204 after
+          successful auth.
+        '';
       };
 
       cookieDomain = lib.mkOption {
@@ -178,9 +181,9 @@ in {
                 PASSKEY_RPID = i.rpid;
                 PASSKEY_ORIGIN = i.origin;
                 PASSKEY_LISTEN = i.listen;
-                PASSKEY_FORWARD = i.forward;
                 PASSKEY_FILE = "/var/lib/${i.stateDirectory}/passkeys.json";
               }
+              // lib.optionalAttrs (i.forward != null) {PASSKEY_FORWARD = i.forward;}
               // lib.optionalAttrs (i.cookieDomain != null) {
                 PASSKEY_COOKIE_DOMAIN = i.cookieDomain;
               }

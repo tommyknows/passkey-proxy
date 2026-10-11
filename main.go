@@ -24,7 +24,6 @@ import (
 
 const (
 	defaultListenAddr  = ":9090"
-	defaultUpstreamURL = "http://localhost:9091"
 	defaultPasskeyFile = "passkeys.json"
 )
 
@@ -77,10 +76,15 @@ func run(ctx context.Context) error {
 		log.Printf("enrollment open for %q at /auth/enroll with token %s", enrollUser, enrollToken)
 	}
 
-	upstreamURL := envOrDefault("PASSKEY_FORWARD", defaultUpstreamURL)
-	upstream, err := url.Parse(upstreamURL)
-	if err != nil {
-		return fmt.Errorf("PASSKEY_FORWARD: %w", err)
+	var proxy *httputil.ReverseProxy
+	if upstreamURL := os.Getenv("PASSKEY_FORWARD"); upstreamURL != "" {
+		upstream, err := url.Parse(upstreamURL)
+		if err != nil {
+			return fmt.Errorf("PASSKEY_FORWARD: %w", err)
+		}
+
+		proxy = httputil.NewSingleHostReverseProxy(upstream)
+		log.Printf("forwarding to %s", upstreamURL)
 	}
 
 	key, err := sessionKey(os.Getenv("PASSKEY_SESSION_KEY"), os.Getenv("PASSKEY_COOKIE_DOMAIN"))
@@ -90,7 +94,7 @@ func run(ctx context.Context) error {
 
 	s := &server{
 		relyingParty: relyingParty,
-		proxy:        httputil.NewSingleHostReverseProxy(upstream),
+		proxy:        proxy,
 		accounts:     accounts,
 		origin:       origin,
 		enrollName:   enrollUser,
@@ -107,7 +111,6 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	log.Printf("forwarding to %s", upstreamURL)
 	return serve(ctx, envOrDefault("PASSKEY_LISTEN", defaultListenAddr), h)
 }
 

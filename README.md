@@ -20,7 +20,7 @@ multiple different servers behind one login.
 | `PASSKEY_SESSION_KEY`   | random                  | Secret to sign session cookies. If unset, a random key is generated at startup.                                                  |
 | `PASSKEY_COOKIE_DOMAIN` | unset                   | The cookie's `Domain` attribute. Set it to the parent domain (`example.com`) to share a login across subdomains.                 |
 | `PASSKEY_LISTEN`        | `:9090`                 | Address to listen on.                                                                                                            |
-| `PASSKEY_FORWARD`       | `http://localhost:9091` | The app to proxy to, as a full URL.                                                                                              |
+| `PASSKEY_FORWARD`       | unset                   | The app to proxy to, as a full URL. If unset, requests will be answered with a 204 on authentication success.                               |
 | `PASSKEY_FILE`          | `passkeys.json`         | File where the passkeys are stored & read from.                                                                                  |
 | `PASSKEY_ENROLL`        | unset                   | Account name to enroll. See below. Leave unset in normal operation.                                                              |
 
@@ -32,6 +32,27 @@ To create a passkey / add a user to the passkey-proxy, set the
 The proxy will log a one-time enrollment token at startup which needs to be
 provided during the enrollment. Once that one-time token is spent, enrollment
 automatically closes until the next restart.
+
+## Usage with nginx's `auth_request`
+
+When `PASSKEY_FORWARD` is unset, the proxy simply replies with a `204` and the
+`X-Auth-User` header on any authenticated request, which makes it suitable to
+use with nginx's `auth_request` functionality:
+
+```nginx
+location /auth/ {
+    proxy_pass http://127.0.0.1:9090;
+}
+
+location / {
+    auth_request /auth/;
+    auth_request_set $auth_user $upstream_http_x_auth_user;
+    proxy_set_header X-Auth-User $auth_user;
+    error_page 401 /auth/;
+
+    proxy_pass http://127.0.0.1:9091;
+}
+```
 
 ## Running several instances
 
@@ -57,6 +78,7 @@ PASSKEY_FORWARD=http://localhost:9093 passkey-proxy
 PASSKEY_RPID=localhost \
 PASSKEY_ORIGIN=http://localhost:9090 \
 PASSKEY_ENROLL=my-user \
+PASSKEY_FORWARD=http://localhost:9091 \
 go run .
 ```
 
