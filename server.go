@@ -222,6 +222,10 @@ func (s *server) enroll(w http.ResponseWriter, r *http.Request) {
 		log.Printf("removed old passkeys for %q", s.enrollName)
 	}
 	log.Printf("enrolled new passkey for %q; unset PASSKEY_ENROLL and restart", s.enrollName)
+
+	// The new passkey and the enrollment token prove the user's identity, so
+	// sign them in right away.
+	http.SetCookie(w, s.sessions.Cookie(s.enrollName))
 }
 
 // loginChallenges holds single-use login challenges. Its zero value is ready to use.
