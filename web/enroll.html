@@ -6,22 +6,25 @@
 <main>
   <h1>Enroll a passkey</h1>
   <p class="sub">Create a passkey to protect this service.</p>
-  <input
-    id="token"
-    type="password"
-    placeholder="Enrollment token"
-    autocomplete="off"
-    required
-  />
-  <label class="option">
-    <input type="checkbox" id="replace" />
-    Remove this account's other passkeys
-  </label>
-  <button id="enroll">Create passkey</button>
+  <form id="enroll-form">
+    <input
+      id="token"
+      type="password"
+      placeholder="Enrollment token"
+      autocomplete="off"
+      required
+    />
+    <label class="option">
+      <input type="checkbox" id="replace" tabindex="0" />
+      Remove this account's other passkeys
+    </label>
+    <button id="enroll" type="submit" tabindex="0">Create passkey</button>
+  </form>
   <p id="out"></p>
 </main>
 
 <script type="module">
+  const enrollForm = document.getElementById("enroll-form");
   const enrollButton = document.getElementById("enroll");
   const status = document.getElementById("out");
   const replaceBox = document.getElementById("replace");
@@ -36,7 +39,8 @@
     status.className = "error";
   });
 
-  enrollButton.onclick = async () => {
+  enrollForm.onsubmit = async (event) => {
+    event.preventDefault();
     const query = replaceBox.checked ? "?replace=1" : "";
     const optionsResponse = await fetch("/auth/enroll/options" + query, {
       method: "POST",
