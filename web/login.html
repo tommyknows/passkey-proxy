@@ -53,7 +53,14 @@
     }
   };
 
-  loginButton.onclick = async () => {
+  // Only one WebAuthn prompt may be open at a time.
+  let pending = false;
+
+  const attempt = async () => {
+    if (pending) {
+      return;
+    }
+    pending = true;
     loginButton.disabled = true;
     status.textContent = "Waiting for your passkey…";
     status.className = "";
@@ -61,23 +68,38 @@
     try {
       await signIn();
     } catch (error) {
+      // If the prompt is blocked or dismissed, offer a retry button.
       showError(error);
+      loginButton.hidden = false;
       loginButton.disabled = false;
+    } finally {
+      pending = false;
     }
   };
 
-  // WebAuthn prompts require a focused document.
-  if (!document.hasFocus()) {
-    await new Promise((resolve) =>
-      addEventListener("focus", resolve, { once: true }),
-    );
-  }
+  loginButton.onclick = attempt;
 
-  // If the automatic prompt is blocked or dismissed, offer a retry button.
-  try {
-    await signIn();
-  } catch (error) {
-    showError(error);
+  // WebAuthn prompts require a visible, focused document. Safari may preload
+  // pages from history in the background and show them without firing
+  // "focus", so also retry on visibility changes and offer the button.
+  const ready = () =>
+    document.visibilityState === "visible" && document.hasFocus();
+
+  if (ready()) {
+    attempt();
+  } else {
+    status.textContent = "Click to sign in with your passkey.";
     loginButton.hidden = false;
+
+    const onReady = () => {
+      if (!ready()) {
+        return;
+      }
+      removeEventListener("focus", onReady);
+      document.removeEventListener("visibilitychange", onReady);
+      attempt();
+    };
+    addEventListener("focus", onReady);
+    document.addEventListener("visibilitychange", onReady);
   }
 </script>
