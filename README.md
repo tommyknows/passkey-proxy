@@ -54,6 +54,10 @@ location / {
 }
 ```
 
+Setups that redirect to the login page instead of serving it in place, like
+ingress-nginx's `auth-signin`, work out of the box: after login, the page
+returns to the URL in the `?rd=` query parameter, if it is on the same origin.
+
 ## Running several instances
 
 Use the **same** `PASSKEY_RPID`, `PASSKEY_SESSION_KEY` and

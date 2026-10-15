@@ -42,7 +42,15 @@
       throw new Error(await response.text());
     }
 
-    location.reload();
+    // if rd query is set, use it to redirect back to that page after login. This
+    // is how ingress-nginx's `auth-signin` works. Only follow it if it matches
+    // our origin.
+    const rd = new URLSearchParams(location.search).get("rd");
+    if (rd && URL.parse(rd, location.href)?.origin === location.origin) {
+      location.assign(rd);
+    } else {
+      location.reload();
+    }
   };
 
   loginButton.onclick = async () => {
